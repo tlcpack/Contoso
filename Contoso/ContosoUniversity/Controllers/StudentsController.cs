@@ -57,14 +57,22 @@ namespace ContosoUniversity.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("ID,LastName,FirstMidName,EnrollmentDate")] Student student)
+        public async Task<IActionResult> Create([Bind("EnrollmentDate,FirstMidName,LastName")] Student student)
         {
-            if (ModelState.IsValid)
+            try
             {
-                _context.Add(student);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                if (ModelState.IsValid)
+                {
+                    _context.Add(student);
+                    await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
+                }
             }
+            catch (DbUpdateException)
+            {
+                ModelState.AddModelError("", "Unable to save changes");
+            }
+            
             return View(student);
         }
 
@@ -87,36 +95,32 @@ namespace ContosoUniversity.Controllers
         // POST: Students/Edit/5
         // To protect from overposting attacks, enable the specific properties you want to bind to.
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
+        [HttpPost, ActionName("Edit")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("ID,LastName,FirstMidName,EnrollmentDate")] Student student)
+        public async Task<IActionResult> EditPost(int? id)
         {
-            if (id != student.ID)
+            if (id == null)
             {
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
+            var studentToUpdate = await _context.Students.FirstOrDefaultAsync(s => s.ID == id);
+            if (await TryUpdateModelAsync<Student>(
+                studentToUpdate,
+                "",
+                s => s.FirstMidName, s => s.LastName, s => s.EnrollmentDate))
             {
                 try
                 {
-                    _context.Update(student);
                     await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
                 }
-                catch (DbUpdateConcurrencyException)
+                catch (DbUpdateException)
                 {
-                    if (!StudentExists(student.ID))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    ModelState.AddModelError("", "Unable to save changes");
                 }
-                return RedirectToAction(nameof(Index));
             }
-            return View(student);
+            return View(studentToUpdate);
         }
 
         // GET: Students/Delete/5
